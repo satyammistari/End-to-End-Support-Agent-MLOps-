@@ -1,0 +1,16 @@
+langchain>=0.3.31
+langchain-community>=0.3.31
+langchain-openai>=0.3.30
+langchain-huggingface>=0.1.0
+numpy>=2.1.0
+zenml
+fastapi
+flask
+uvicorn
+gcsfs==2023.5.0
+faiss-cpu
+unstructured-client
+langchain-unstructured
+tiktoken
+bs4
+typing_extensions
