@@ -1,44 +1,33 @@
 import os
-from typing import Type
+from typing import Type, Any
 
 from langchain_community.vectorstores.faiss import FAISS
-from langchain_core.vectorstores.base import VectorStore
-from langchain_openai import OpenAIEmbeddings
-from zenml.client import Client
+from langchain_core.vectorstores import VectorStore
+# Use the same local embeddings we used in the index_generator
+from langchain_huggingface import HuggingFaceEmbeddings 
 from zenml.materializers.base_materializer import BaseMaterializer
 
-
 class FAISSMaterializer(BaseMaterializer):
-    """Materializer for FAISS vector stores."""
+    """Enterprise materializer for FAISS vector stores using local embeddings."""
 
     ASSOCIATED_TYPES = (FAISS, VectorStore)
 
     def save(self, data: FAISS) -> None:
-        """Save the FAISS index and documents.
-
-        Args:
-            data: The FAISS vector store to save
-        """
-        # Save the index to disk
+        """Saves the FAISS index to the ZenML artifact store."""
+        # data.save_local writes the index.faiss and index.pkl files
         data.save_local(self.uri)
 
-    def load(self, data_type: Type[FAISS]) -> FAISS:
-        """Load the FAISS index and documents.
+    def load(self, data_type: Type[Any]) -> FAISS:
+        """Loads the FAISS index using local HuggingFace embeddings."""
+        
+        # 1. Initialize the SAME embedding model used during creation
+        # This is critical so the vectors "align" correctly
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
 
-        Returns:
-            The loaded FAISS vector store
-        """
-        # First try to get API key from environment variable
-        api_key = os.getenv("OPENAI_API_KEY")
-
-        # If not found in env, fall back to ZenML secret
-        if not api_key:
-            secret = Client().get_secret("llm_complete")
-            api_key = secret.secret_values["openai_api_key"]
-
-        embeddings = OpenAIEmbeddings(openai_api_key=api_key)
-
-        # Load from disk
+        # 2. Load from disk with 'dangerous' deserialization enabled
+        # This is required because LangChain uses pickle for FAISS metadata
         return FAISS.load_local(
             self.uri,
             embeddings=embeddings,
